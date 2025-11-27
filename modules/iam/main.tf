@@ -1,7 +1,7 @@
 resource "aws_iam_role" lambda_cert_issuer" {
     name = "lambda_cert_issuer_role"
 
-    assume_role_policu = data.aws_iam_policu_document.lambda_trust.json
+    assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
 }
 
     resource "aws_iam_role" "lambda_scanner" {
@@ -28,3 +28,19 @@ resoure "aws_iam_role" "pqc_keygen" {
     assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
 }
 
+data "aws_iam_policy_documents" lambda_trust" {
+    statement {
+        effect = "Allow"
+
+        principals {
+        type    = "Service"
+        identifiers = ["lambda.amazonaws.com"]
+    }
+
+    actions = ["sts:AssumeRole"]
+    }
+}
+
+module "iam" {
+    source = "../../modules/iam"
+}
