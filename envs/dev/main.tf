@@ -46,3 +46,12 @@ module "vpc" {
 module "iam" {
   source = "../../modules/iam"
 }
+
+module "pca" {
+  source = "../../modules/pca"
+
+  project_name           = "dev"
+  root_ca_validity_years = 10
+  sub_ca_validity_years  = 3
+  pca_admin_role_arn     = module.iam.pca_admin_role_arn
+}
