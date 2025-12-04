@@ -39,19 +39,35 @@ module "vpc" {
   }
 }
 
-###############################
+
 # IAM Module
-###############################
+
 
 module "iam" {
   source = "../../modules/iam"
 }
 
-module "pca" {
-  source = "../../modules/pca"
+# PCA Module
+  module "pca" {
+  source = "../../modules/pca"  
 
-  project_name           = "dev"
-  root_ca_validity_years = 10
-  sub_ca_validity_years  = 3
-  pca_admin_role_arn     = module.iam.pca_admin_role_arn
+  root_ca_arn = "arn:aws:acm-pca:us-east-1:394863179010:certificate-authority/05ead21a-a5bf-4175-a023-a08849f1c386"
+
+  subordinate_ca_config = {
+    common_name         = "quantum-sub-ca"
+    organization        = "QuantumSafe"
+    organizational_unit = "IssuingCA"
+    locality            = "Dallas"
+    state               = "Texas"
+    country             = "US"
+  }
+}
+
+# KMS Module
+
+module "kms" {
+  source = "../../modules/kms"
+
+  project_name        = "dev"
+  pqc_keygen_role_arn = module.iam.pqc_keygen_role_arn
 }
