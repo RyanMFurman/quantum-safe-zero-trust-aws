@@ -13,3 +13,12 @@ crash.log
 # OS files
 .DS_Store
 Thumbs.db
+
+# Sensitive PKI files 
+*.pem
+*.csr
+*.cnf
+certs/
+*root*
+*subordinate*
+*chain*
