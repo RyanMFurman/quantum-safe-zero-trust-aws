@@ -1,0 +1,13 @@
+
+{
+  "KeyAlgorithm": "RSA_4096",
+  "SigningAlgorithm": "SHA512WITHRSA",
+  "Subject": {
+    "Country": "US",
+    "State": "TX",
+    "Locality": "Dallas",
+    "Organization": "QuantumSafe",
+    "OrganizationalUnit": "RootCA",
+    "CommonName": "quantum-root-ca"
+  }
+}
