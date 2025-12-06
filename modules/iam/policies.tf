@@ -117,3 +117,22 @@ resource "aws_iam_role_policy" "pqc_keygen_inline" {
   role   = aws_iam_role.pqc_keygen.name
   policy = data.aws_iam_policy_document.pqc_keygen_policy.json
 }
+
+# Device Identity Policy
+data "aws_iam_policy_document" "device_policy" {
+  statement {
+    actions = [
+      "dynamodb:PutItem",
+      "dynamodb:GetItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:DescribeTable"
+    ]
+
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_role_policy" "device_policy" {
+  role   = aws_iam_role.device_role.name
+  policy = data.aws_iam_policy_document.device_policy.json
+}

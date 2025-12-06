@@ -100,6 +100,9 @@ module "device_identity" {
   project_name        = "quantum-safe"
   environment         = "dev"
   artifact_bucket_arn = module.secure_s3.bucket_arn
+
+  device_role_arn     = module.iam.device_role_arn
+  subordinate_ca_arn  = module.pca.subordinate_ca_arn
 }
 
 #Module Scanner

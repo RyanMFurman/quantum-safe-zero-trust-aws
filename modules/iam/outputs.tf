@@ -17,3 +17,7 @@ output "lambda_cert_issuer_role_arn" {
 output "lambda_remediation_role_arn" {
   value = aws_iam_role.lambda_remediation.arn
 }
+
+output "device_role_arn" {
+  value = aws_iam_role.device_role.arn
+}
