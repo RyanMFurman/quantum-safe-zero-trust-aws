@@ -63,3 +63,27 @@ resource "aws_iam_role_policy" "device_policy" {
     ]
   })
 }
+
+resource "aws_lambda_function" "onboard" {
+  function_name = "${var.project_name}-device-onboard"
+  role          = var.device_role_arn
+  handler       = "onboard.handler"
+  runtime       = "python3.12"
+  timeout       = 30
+
+  filename = "${path.module}/onboard.zip"
+
+  environment {
+    variables = {
+      DEVICE_TABLE = aws_dynamodb_table.device_registry.name
+      SUB_CA_ARN   = var.subordinate_ca_arn
+    }
+  }
+}
+
+resource "aws_lambda_permission" "allow_apigw" {
+  statement_id  = "AllowAPIGWInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.onboard.arn
+  principal     = "apigateway.amazonaws.com"
+}

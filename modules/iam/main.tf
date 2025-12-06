@@ -36,3 +36,15 @@ resource "aws_iam_role" "pqc_keygen" {
   name               = "pqc_keygen_role"
   assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
 }
+
+# Device Identity Role
+resource "aws_iam_role" "device_role" {
+  name = "quantum-safe_device_role"
+
+  assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
+
+  tags = {
+    Project = "quantum-safe"
+    Role    = "device-identity"
+  }
+}
