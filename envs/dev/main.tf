@@ -71,3 +71,27 @@ module "kms" {
   project_name        = "dev"
   pqc_keygen_role_arn = module.iam.pqc_keygen_role_arn
 }
+
+# Secure S3 Bucket Module
+
+module "secure_s3" {
+  source = "../../modules/s3"
+
+  bucket_name = "quantum-safe-artifacts-dev"
+  kms_key_arn = module.kms.pqc_hybrid_key_arn
+
+  iam_roles_allowed = [
+    module.iam.pqc_keygen_role_arn,
+    module.iam.lambda_scanner_role_arn
+  ]
+}
+
+# Device Identity Module
+
+module "device_identity" {
+  source = "../../modules/device_identity"
+
+  project_name        = "quantum-safe"
+  environment         = "dev"
+  artifact_bucket_arn = module.secure_s3.bucket_arn
+}
