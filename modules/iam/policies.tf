@@ -35,7 +35,11 @@ data "aws_iam_policy_document" "scanner_policy" {
       "acm-pca:ListCertificateAuthorities",
       "acm-pca:DescribeCertificateAuthority",
       "s3:ListBucket",
-      "s3:GetObject"
+      "s3:GetObject",
+      "s3:PutObject",
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "sqs:SendMessage"
     ]
 
     resources = ["*"]

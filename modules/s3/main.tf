@@ -1,10 +1,20 @@
+# Secure S3 Bucket Module
+
 resource "aws_s3_bucket" "secure" {
   bucket = var.bucket_name
 
   tags = {
     Name = var.bucket_name
-    Env  = "dev"
+    Env  = var.project_name
   }
+}
+
+resource "aws_s3_bucket_public_access_block" "block_public" {
+  bucket                  = aws_s3_bucket.secure.id
+  block_public_acls       = true
+  ignore_public_acls      = true
+  block_public_policy     = true
+  restrict_public_buckets = true
 }
 
 resource "aws_s3_bucket_versioning" "versioning" {
@@ -26,36 +36,44 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
   }
 }
 
-resource "aws_s3_bucket_public_access_block" "block_public" {
-  bucket = aws_s3_bucket.secure.id
+data "aws_iam_policy_document" "bucket_policy" {
+  statement {
+    effect = "Allow"
 
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
+    principals {
+      type        = "AWS"
+      identifiers = var.iam_roles_allowed
+    }
+
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+
+    resources = ["${aws_s3_bucket.secure.arn}/*"]
+  }
 }
 
 resource "aws_s3_bucket_policy" "bucket_policy" {
   bucket = aws_s3_bucket.secure.id
+  policy = data.aws_iam_policy_document.bucket_policy.json
+}
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          AWS = var.iam_roles_allowed
-        }
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          "${aws_s3_bucket.secure.arn}",
-          "${aws_s3_bucket.secure.arn}/*"
-        ]
-      }
-    ]
-  })
+# S3 → Lambda Notifications
+
+resource "aws_s3_bucket_notification" "events" {
+  bucket = aws_s3_bucket.secure.id
+
+  lambda_function {
+    lambda_function_arn = var.scanner_lambda_arn
+    events              = ["s3:ObjectCreated:*"]
+  }
+
+  depends_on = [
+    var.scanner_lambda_permission
+  ]
+}
+
+output "bucket_arn" {
+  value = aws_s3_bucket.secure.arn
 }
