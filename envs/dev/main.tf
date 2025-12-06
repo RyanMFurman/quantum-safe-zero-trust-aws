@@ -78,12 +78,18 @@ module "secure_s3" {
   source = "../../modules/s3"
 
   bucket_name = "quantum-safe-artifacts-dev"
+  project_name = "dev"
+
   kms_key_arn = module.kms.pqc_hybrid_key_arn
 
   iam_roles_allowed = [
     module.iam.pqc_keygen_role_arn,
     module.iam.lambda_scanner_role_arn
   ]
+
+  # Lambda integration
+  scanner_lambda_arn        = module.lambda_scanner.scanner_lambda_arn
+  scanner_lambda_permission = module.lambda_scanner.allow_s3_permission
 }
 
 # Device Identity Module
@@ -94,4 +100,15 @@ module "device_identity" {
   project_name        = "quantum-safe"
   environment         = "dev"
   artifact_bucket_arn = module.secure_s3.bucket_arn
+}
+
+#Module Scanner
+
+module "lambda_scanner" {
+  source = "../../modules/lambda"
+
+  project_name             = "dev"
+  lambda_scanner_role_arn  = module.iam.lambda_scanner_role_arn
+  bucket_arn               = module.secure_s3.bucket_arn
+  kms_key_arn              = module.kms.pqc_hybrid_key_arn
 }

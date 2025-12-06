@@ -1,14 +1,23 @@
 variable "bucket_name" {
-  description = "Name of the secure bucket"
-  type        = string
+  type = string
 }
 
 variable "kms_key_arn" {
-  description = "KMS key used for encryption"
-  type        = string
+  type = string
 }
 
 variable "iam_roles_allowed" {
-  description = "IAM role ARNs allowed to read/write"
-  type        = list(string)
+  type = list(string)
+}
+
+variable "project_name" {
+  type = string
+}
+
+variable "scanner_lambda_arn" {
+  type = string
+}
+
+variable "scanner_lambda_permission" {
+  type = string
 }
