@@ -1,4 +1,6 @@
-# Trust policy allowing Lambda to assume these roles
+# IAM TRUST POLICIES
+
+# Generic Lambda trust policy (used by most Lambda roles)
 data "aws_iam_policy_document" "lambda_trust" {
   statement {
     effect = "Allow"
@@ -11,6 +13,21 @@ data "aws_iam_policy_document" "lambda_trust" {
     actions = ["sts:AssumeRole"]
   }
 }
+
+# Device Identity Lambda trust policy (separate for clarity)
+data "aws_iam_policy_document" "device_lambda_trust" {
+  statement {
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+
+# IAM ROLES
 
 resource "aws_iam_role" "lambda_cert_issuer" {
   name               = "lambda_cert_issuer_role"
@@ -37,11 +54,12 @@ resource "aws_iam_role" "pqc_keygen" {
   assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
 }
 
-# Device Identity Role
+# Device Identity Lambda Execution Role
 resource "aws_iam_role" "device_role" {
   name = "quantum-safe_device_role"
 
-  assume_role_policy = data.aws_iam_policy_document.lambda_trust.json
+  # FIXED: correct reference, only one assignment
+  assume_role_policy = data.aws_iam_policy_document.device_lambda_trust.json
 
   tags = {
     Project = "quantum-safe"

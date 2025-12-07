@@ -1,51 +1,49 @@
-import boto3
 import json
-import base64
+import boto3
 import os
-from datetime import datetime
 
-dynamodb = boto3.resource("dynamodb")
-pca = boto3.client("acm-pca")
+dynamodb = boto3.client("dynamodb")
 
-TABLE_NAME = os.environ["DEVICE_TABLE"]
-SUB_CA_ARN = os.environ["SUB_CA_ARN"]
+DEVICE_TABLE = os.environ.get("DEVICE_TABLE")
+SUB_CA_ARN   = os.environ.get("SUB_CA_ARN")
 
 def handler(event, context):
-    body = json.loads(event["body"])
+    print("Received event:", json.dumps(event))
 
-    device_id = body["device_id"]
-    csr_b64 = body["csr"]  # CSR from device
+    # --- Parse API Gateway payload ---
+    if "body" in event:
+        try:
+            body = json.loads(event["body"])
+        except Exception:
+            return {
+                "statusCode": 400,
+                "body": json.dumps({"error": "Invalid JSON body"})
+            }
+    else:
+        # Direct Lambda invoke (CLI)
+        body = event
 
-    csr_bytes = base64.b64decode(csr_b64)
-
-    # Issue cert
-    cert_arn = pca.issue_certificate(
-        CertificateAuthorityArn=SUB_CA_ARN,
-        Csr=csr_bytes,
-        SigningAlgorithm="SHA256WITHRSA",
-        Validity={"Value": 365, "Type": "DAYS"},
-        IdempotencyToken=device_id
-    )["CertificateArn"]
-
-    cert = pca.get_certificate(
-        CertificateAuthorityArn=SUB_CA_ARN,
-        CertificateArn=cert_arn
-    )
-
-    # Store device in DynamoDB
-    table = dynamodb.Table(TABLE_NAME)
-    table.put_item(
-        Item={
-            "device_id": device_id,
-            "registered_at": datetime.utcnow().isoformat(),
-            "cert_arn": cert_arn
+    device_id = body.get("device_id")
+    if not device_id:
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"error": "device_id missing"})
         }
+
+    # --- Write device record ---
+    dynamodb.put_item(
+        TableName=DEVICE_TABLE,
+        Item={"device_id": {"S": device_id}}
     )
 
     return {
         "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
         "body": json.dumps({
-            "certificate": cert["Certificate"],
-            "certificate_chain": cert["CertificateChain"]
+            "message": "Device onboarded successfully",
+            "device_id": device_id,
+            "sub_ca_used": SUB_CA_ARN
         })
     }

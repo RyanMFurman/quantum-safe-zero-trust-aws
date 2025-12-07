@@ -18,3 +18,7 @@ variable "device_role_arn" {
 variable "subordinate_ca_arn" {
   type = string
 }
+
+variable "device_role_name" {
+  type = string
+}

@@ -136,3 +136,22 @@ resource "aws_iam_role_policy" "device_policy" {
   role   = aws_iam_role.device_role.name
   policy = data.aws_iam_policy_document.device_policy.json
 }
+
+#Logging Policy
+
+data "aws_iam_policy_document" "device_logging_policy" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "logs:CreateLogGroup",
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["arn:aws:logs:*:*:*"]
+  }
+}
+
+resource "aws_iam_role_policy" "device_logging_inline" {
+  role   = aws_iam_role.device_role.name
+  policy = data.aws_iam_policy_document.device_logging_policy.json
+}

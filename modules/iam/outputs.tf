@@ -21,3 +21,7 @@ output "lambda_remediation_role_arn" {
 output "device_role_arn" {
   value = aws_iam_role.device_role.arn
 }
+
+output "device_role_name" {
+  value = aws_iam_role.device_role.name
+}
