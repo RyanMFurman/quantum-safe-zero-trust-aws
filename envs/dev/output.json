@@ -1,0 +1,1 @@
+{"statusCode": 200, "headers": {"Content-Type": "application/json"}, "body": "{\"message\": \"Device onboarded successfully\", \"device_id\": \"cli-test\", \"sub_ca_used\": \"arn:aws:acm-pca:us-east-1:394863179010:certificate-authority/b1dc9cb7-fbe0-4f6c-bd4e-5fa488050404\"}"}
