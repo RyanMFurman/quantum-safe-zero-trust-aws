@@ -1,6 +1,6 @@
-
-# Dev Environment Root Module
-
+#############################################
+# TERRAFORM + PROVIDER
+#############################################
 
 terraform {
   required_version = ">= 1.3.0"
@@ -17,8 +17,15 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# VPC Module
+#############################################
+# DATA SOURCES
+#############################################
 
+data "aws_caller_identity" "current" {}
+
+#############################################
+# VPC MODULE
+#############################################
 
 module "vpc" {
   source = "../../modules/vpc"
@@ -39,17 +46,20 @@ module "vpc" {
   }
 }
 
-
-# IAM Module
-
+#############################################
+# IAM MODULE
+#############################################
 
 module "iam" {
   source = "../../modules/iam"
 }
 
-# PCA Module
-  module "pca" {
-  source = "../../modules/pca"  
+#############################################
+# PCA MODULE
+#############################################
+
+module "pca" {
+  source = "../../modules/pca"
 
   root_ca_arn = "arn:aws:acm-pca:us-east-1:394863179010:certificate-authority/05ead21a-a5bf-4175-a023-a08849f1c386"
 
@@ -63,7 +73,9 @@ module "iam" {
   }
 }
 
-# KMS Module
+#############################################
+# KMS MODULE
+#############################################
 
 module "kms" {
   source = "../../modules/kms"
@@ -72,12 +84,14 @@ module "kms" {
   pqc_keygen_role_arn = module.iam.pqc_keygen_role_arn
 }
 
-# Secure S3 Bucket Module
+#############################################
+# SECURE S3
+#############################################
 
 module "secure_s3" {
   source = "../../modules/s3"
 
-  bucket_name = "quantum-safe-artifacts-dev"
+  bucket_name  = "quantum-safe-artifacts-dev"
   project_name = "dev"
 
   kms_key_arn = module.kms.pqc_hybrid_key_arn
@@ -87,12 +101,13 @@ module "secure_s3" {
     module.iam.lambda_scanner_role_arn
   ]
 
-  # Lambda integration
   scanner_lambda_arn        = module.lambda_scanner.scanner_lambda_arn
   scanner_lambda_permission = module.lambda_scanner.allow_s3_permission
 }
 
-# Device Identity Module
+#############################################
+# DEVICE IDENTITY MODULE (LAMBDA)
+#############################################
 
 module "device_identity" {
   source = "../../modules/device_identity"
@@ -102,16 +117,55 @@ module "device_identity" {
   artifact_bucket_arn = module.secure_s3.bucket_arn
 
   device_role_arn     = module.iam.device_role_arn
+  device_role_name    = module.iam.device_role_name
   subordinate_ca_arn  = module.pca.subordinate_ca_arn
 }
 
-#Module Scanner
+#############################################
+# LAMBDA SCANNER MODULE
+#############################################
 
 module "lambda_scanner" {
   source = "../../modules/lambda"
 
-  project_name             = "dev"
-  lambda_scanner_role_arn  = module.iam.lambda_scanner_role_arn
-  bucket_arn               = module.secure_s3.bucket_arn
-  kms_key_arn              = module.kms.pqc_hybrid_key_arn
+  project_name            = "dev"
+  lambda_scanner_role_arn = module.iam.lambda_scanner_role_arn
+  bucket_arn              = module.secure_s3.bucket_arn
+  kms_key_arn             = module.kms.pqc_hybrid_key_arn
+}
+
+#############################################
+# DEVICE API (API GATEWAY)
+#############################################
+
+module "device_api" {
+  source = "../../modules/apigw"
+
+  project_name      = "quantum-safe"
+  lambda_invoke_arn = module.device_identity.device_onboard_lambda_invoke_arn
+  lambda_name       = module.device_identity.device_onboard_lambda_name
+
+  environment = "dev"
+  region      = "us-east-1"
+  account_id  = data.aws_caller_identity.current.account_id
+}
+
+#############################################
+# OUTPUTS
+#############################################
+
+output "device_onboard_lambda_name" {
+  value = module.device_identity.device_onboard_lambda_name
+}
+
+output "device_onboard_lambda_invoke_arn" {
+  value = module.device_identity.device_onboard_lambda_invoke_arn
+}
+
+output "api_id" {
+  value = module.device_api.api_id
+}
+
+output "invoke_url" {
+  value = module.device_api.invoke_url
 }
