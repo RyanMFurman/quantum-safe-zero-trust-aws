@@ -1,4 +1,4 @@
-# Secure S3 Bucket Module
+# S3 BUCKET
 
 resource "aws_s3_bucket" "secure" {
   bucket = var.bucket_name
@@ -36,6 +36,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
   }
 }
 
+# BUCKET POLICY
+
 data "aws_iam_policy_document" "bucket_policy" {
   statement {
     effect = "Allow"
@@ -59,18 +61,29 @@ resource "aws_s3_bucket_policy" "bucket_policy" {
   policy = data.aws_iam_policy_document.bucket_policy.json
 }
 
-# S3 → Lambda Notifications
+# NOTIFICATIONS
 
 resource "aws_s3_bucket_notification" "events" {
   bucket = aws_s3_bucket.secure.id
 
+  # Scanner Lambda (uploads/)
   lambda_function {
     lambda_function_arn = var.scanner_lambda_arn
     events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "uploads/"
+  }
+
+  # Cert Issuer Lambda (csr/)
+  lambda_function {
+    lambda_function_arn = var.cert_issuer_lambda_arn
+    events              = ["s3:ObjectCreated:*"]
+    filter_prefix       = "csr/"
+    filter_suffix       = ".csr"
   }
 
   depends_on = [
-    var.scanner_lambda_permission
+    var.scanner_lambda_permission,
+    var.cert_issuer_lambda_permission
   ]
 }
 

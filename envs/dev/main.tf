@@ -1,6 +1,5 @@
-#############################################
+
 # TERRAFORM + PROVIDER
-#############################################
 
 terraform {
   required_version = ">= 1.3.0"
@@ -17,15 +16,12 @@ provider "aws" {
   region = "us-east-1"
 }
 
-#############################################
 # DATA SOURCES
-#############################################
 
 data "aws_caller_identity" "current" {}
 
-#############################################
 # VPC MODULE
-#############################################
+
 
 module "vpc" {
   source = "../../modules/vpc"
@@ -46,17 +42,21 @@ module "vpc" {
   }
 }
 
-#############################################
 # IAM MODULE
-#############################################
 
 module "iam" {
   source = "../../modules/iam"
+
+  subordinate_ca_arn = module.pca.subordinate_ca_arn
+  device_table_name  = module.device_identity.device_registry_name
+  kms_key_arn        = module.kms.pqc_hybrid_key_arn
+
+  bucket_name = "quantum-safe-artifacts-dev"
+  aws_region  = "us-east-1"
 }
 
-#############################################
+
 # PCA MODULE
-#############################################
 
 module "pca" {
   source = "../../modules/pca"
@@ -73,9 +73,7 @@ module "pca" {
   }
 }
 
-#############################################
 # KMS MODULE
-#############################################
 
 module "kms" {
   source = "../../modules/kms"
@@ -84,10 +82,8 @@ module "kms" {
   pqc_keygen_role_arn = module.iam.pqc_keygen_role_arn
 }
 
-#############################################
 # SECURE S3
-#############################################
-
+ 
 module "secure_s3" {
   source = "../../modules/s3"
 
@@ -103,11 +99,15 @@ module "secure_s3" {
 
   scanner_lambda_arn        = module.lambda_scanner.scanner_lambda_arn
   scanner_lambda_permission = module.lambda_scanner.allow_s3_permission
+
+  # UPDATED OUTPUT NAMES
+  cert_issuer_lambda_arn        = module.lambda_cert_issuer.lambda_cert_issuer_arn
+  cert_issuer_lambda_permission = module.lambda_cert_issuer.lambda_cert_issuer_permission
 }
 
-#############################################
+
+
 # DEVICE IDENTITY MODULE (LAMBDA)
-#############################################
 
 module "device_identity" {
   source = "../../modules/device_identity"
@@ -121,9 +121,7 @@ module "device_identity" {
   subordinate_ca_arn  = module.pca.subordinate_ca_arn
 }
 
-#############################################
 # LAMBDA SCANNER MODULE
-#############################################
 
 module "lambda_scanner" {
   source = "../../modules/lambda"
@@ -134,9 +132,7 @@ module "lambda_scanner" {
   kms_key_arn             = module.kms.pqc_hybrid_key_arn
 }
 
-#############################################
 # DEVICE API (API GATEWAY)
-#############################################
 
 module "device_api" {
   source = "../../modules/apigw"
@@ -150,9 +146,17 @@ module "device_api" {
   account_id  = data.aws_caller_identity.current.account_id
 }
 
-#############################################
+#LAMBDA CERT ISSUER
+module "lambda_cert_issuer" {
+  source = "../../modules/lambda_cert_issuer"
+
+  project_name       = "dev"
+  bucket_name        = "quantum-safe-artifacts-dev"
+  subordinate_ca_arn = module.pca.subordinate_ca_arn
+  device_table_name  = module.device_identity.device_registry_name
+}
+
 # OUTPUTS
-#############################################
 
 output "device_onboard_lambda_name" {
   value = module.device_identity.device_onboard_lambda_name

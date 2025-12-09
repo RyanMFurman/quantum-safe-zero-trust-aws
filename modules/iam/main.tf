@@ -58,7 +58,7 @@ resource "aws_iam_role" "pqc_keygen" {
 resource "aws_iam_role" "device_role" {
   name = "quantum-safe_device_role"
 
-  # FIXED: correct reference, only one assignment
+  # correct reference, only one assignment
   assume_role_policy = data.aws_iam_policy_document.device_lambda_trust.json
 
   tags = {
@@ -66,3 +66,10 @@ resource "aws_iam_role" "device_role" {
     Role    = "device-identity"
   }
 }
+
+resource "aws_iam_role_policy_attachment" "cert_issuer_logs" {
+  role       = aws_iam_role.lambda_cert_issuer.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_caller_identity" "current" {}
