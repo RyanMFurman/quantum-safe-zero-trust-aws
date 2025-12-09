@@ -9,3 +9,7 @@ output "device_onboard_lambda_invoke_arn" {
 output "device_role_arn" {
   value = var.device_role_arn
 }
+
+output "device_registry_name" {
+  value = aws_dynamodb_table.device_registry.name
+}

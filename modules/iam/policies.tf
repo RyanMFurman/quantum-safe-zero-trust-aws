@@ -5,16 +5,45 @@
 
 #Certificate Issuer Role
 
-
 data "aws_iam_policy_document" "cert_issuer_policy" {
   statement {
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject"
+    ]
+    resources = [
+      "arn:aws:s3:::${var.bucket_name}/*"
+    ]
+  }
+
+  statement {
+    effect = "Allow"
     actions = [
       "acm-pca:IssueCertificate",
-      "acm-pca:GetCertificate",
-      "acm-pca:DescribeCertificateAuthority"
+      "acm-pca:GetCertificate"
     ]
+    resources = [var.subordinate_ca_arn]
+  }
 
-    resources = ["*"]
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:Encrypt",
+      "kms:Decrypt",
+      "kms:GenerateDataKey"
+    ]
+    resources = [var.kms_key_arn]
+  }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "dynamodb:UpdateItem"
+    ]
+    resources = [
+      "arn:aws:dynamodb:${var.aws_region}:${data.aws_caller_identity.current.account_id}:table/${var.device_table_name}"
+    ]
   }
 }
 
