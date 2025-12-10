@@ -156,6 +156,17 @@ module "lambda_cert_issuer" {
   device_table_name  = module.device_identity.device_registry_name
 }
 
+# ATTESTATION VALIDATOR
+module "attestation_validator" {
+  source = "../../modules/attestation_validator"
+
+  project_name       = "dev"
+  device_table_name  = module.device_identity.device_registry_name
+  kms_key_arn        = module.kms.pqc_hybrid_key_arn
+  subordinate_ca_arn = module.pca.subordinate_ca_arn
+}
+
+
 # OUTPUTS
 
 output "device_onboard_lambda_name" {
