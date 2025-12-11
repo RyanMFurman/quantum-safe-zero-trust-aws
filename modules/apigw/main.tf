@@ -1,14 +1,10 @@
-########################################
 # REST API
-########################################
 
 resource "aws_api_gateway_rest_api" "device_onboard" {
   name = "${var.project_name}-device-onboard-api"
 }
 
-########################################
 # RESOURCE: /onboard
-########################################
 
 resource "aws_api_gateway_resource" "onboard" {
   rest_api_id = aws_api_gateway_rest_api.device_onboard.id
@@ -16,9 +12,7 @@ resource "aws_api_gateway_resource" "onboard" {
   path_part   = "onboard"
 }
 
-########################################
 # METHOD: POST
-########################################
 
 resource "aws_api_gateway_method" "post_onboard" {
   rest_api_id   = aws_api_gateway_rest_api.device_onboard.id
@@ -27,9 +21,8 @@ resource "aws_api_gateway_method" "post_onboard" {
   authorization = "NONE"
 }
 
-########################################
-# INTEGRATION → LAMBDA
-########################################
+
+# INTEGRATION - LAMBDA
 
 resource "aws_api_gateway_integration" "onboard_lambda" {
   rest_api_id             = aws_api_gateway_rest_api.device_onboard.id
@@ -41,9 +34,8 @@ resource "aws_api_gateway_integration" "onboard_lambda" {
     uri                     = var.lambda_invoke_arn
 }
 
-########################################
+
 # DEPLOYMENT
-########################################
 
 resource "aws_api_gateway_deployment" "deployment" {
   rest_api_id = aws_api_gateway_rest_api.device_onboard.id
@@ -61,9 +53,7 @@ resource "aws_api_gateway_deployment" "deployment" {
   }
 }
 
-########################################
 # STAGE
-########################################
 
 resource "aws_api_gateway_stage" "dev" {
   rest_api_id   = aws_api_gateway_rest_api.device_onboard.id
@@ -80,9 +70,7 @@ resource "aws_api_gateway_stage" "dev" {
   ]
 }
 
-########################################
 # LAMBDA PERMISSION
-########################################
 
 resource "aws_lambda_permission" "allow_apigw" {
   statement_id  = "AllowAPIGWInvoke"
