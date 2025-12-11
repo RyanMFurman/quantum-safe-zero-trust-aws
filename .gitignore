@@ -22,3 +22,39 @@ certs/
 *root*
 *subordinate*
 *chain*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.log
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars
+
+# AWS CLI local artifacts
+*.pem
+*.crt
+*.csr
+*.json
+*.key
+
+# Device certs (local only)
+device.key
+device.crt
+device.json
+
+# OS junk
+.DS_Store
+Thumbs.db
