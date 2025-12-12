@@ -1,3 +1,4 @@
+# Terraform
 .terraform/
 .terraform.lock.hcl.backup
 terraform.tfstate
@@ -36,12 +37,6 @@ venv/
 .env/
 .venv/
 
-# Terraform
-.terraform/
-.terraform.lock.hcl
-terraform.tfstate
-terraform.tfstate.backup
-*.tfvars
 
 # AWS CLI local artifacts
 *.pem
