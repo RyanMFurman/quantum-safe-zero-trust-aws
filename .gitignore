@@ -1,55 +1,60 @@
+# ========================
 # Terraform
+# ========================
 .terraform/
-.terraform.lock.hcl.backup
+.terraform.lock.hcl
 terraform.tfstate
 terraform.tfstate.*
-crash.log
-override.tf
-override.tf.json
-*.tfvars
 
-# Terraform crash logs
-crash.log
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Sensitive PKI files 
-*.pem
-*.csr
-*.cnf
-certs/
-*root*
-*subordinate*
-*chain*
-
-# Python
+# ========================
+# Python — global
+# ========================
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.pkl
 *.log
 
 # Virtual environments
 venv/
+pqc-venv/
+oqs-venv/
 .env/
 .venv/
 
-
-# AWS CLI local artifacts
+# ========================
+# Device / PKI artifacts
+# ========================
 *.pem
-*.crt
 *.csr
-*.json
+*.crt
 *.key
+*.pk
+*.sk
 
-# Device certs (local only)
-device.key
-device.crt
-device.json
+# Device test artifacts
+modules/pqc/device.key
+modules/pqc/device.crt
+modules/pqc/device_pqc.pk
+modules/pqc/device_pqc.sk
 
+# ========================
+# Lambda build artifacts
+# (keep Python source, ignore ZIPs)
+# ========================
+modules/lambda_cert_issuer/*.zip
+modules/device_identity/*.zip
+modules/attestation_validator/*.zip
+modules/lambda/*.zip
+modules/zt_security/*.zip
+
+# ========================
 # OS junk
+# ========================
 .DS_Store
 Thumbs.db
+
+# ========================
+# Local tools / cache
+# ========================
+*.json.backup
