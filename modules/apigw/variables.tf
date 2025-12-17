@@ -21,3 +21,13 @@ variable "region" {
 variable "account_id" {
   type = string
 }
+
+variable "attestation_lambda_invoke_arn" {
+  description = "Invoke ARN for attestation lambda"
+  type        = string
+}
+
+variable "attestation_lambda_name" {
+  description = "Lambda name for attestation validator"
+  type        = string
+}

@@ -1,51 +1,94 @@
-import boto3
 import json
+import boto3
 import base64
-from botocore.exceptions import ClientError
-from cryptography.hazmat.primitives import serialization, hashes
+import os
+import time
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
-dynamodb = boto3.resource("dynamodb")
+DDB = boto3.resource("dynamodb")
+TABLE = DDB.Table(os.environ["DEVICE_TABLE"])
+S3 = boto3.client("s3")
+
+BUCKET = "quantum-safe-artifacts-dev"
 
 def lambda_handler(event, context):
-    print("Received:", json.dumps(event))
 
-    body = json.loads(event["body"])
+    # -------- FIX #1: Parse body safely --------
+    try:
+        body = json.loads(event.get("body", "{}"))
+    except:
+        return respond(400, {"error": "Invalid request format"})
+
+    if "device_id" not in body:
+        return respond(400, {"error": "Missing device_id"})
 
     device_id = body["device_id"]
-    challenge = base64.b64decode(body["challenge"])
-    signature = base64.b64decode(body["signature"])
 
-    table = dynamodb.Table("quantum-safe-device-registry")
+    # -------- HANDLE CHALLENGE REQUEST --------
+    if body.get("request") == "challenge":
+        challenge = f"attest-{device_id}-{int(time.time())}"
+        return respond(200, {"challenge": challenge})
 
-    # Fetch stored public key
-    resp = table.get_item(Key={"device_id": device_id})
-    if "Item" not in resp:
-        return {"statusCode": 404, "body": "Device not found"}
 
-    pubkey_pem = resp["Item"]["public_key"]
+    # -------- SIGNATURE VERIFICATION --------
+    if "challenge" not in body or "signature" not in body:
+        return respond(400, {"error": "Missing challenge or signature"})
 
-    public_key = serialization.load_pem_public_key(pubkey_pem.encode("utf-8"))
+    challenge = body["challenge"]
+    signature = bytes.fromhex(body["signature"])
 
-    # VERIFY RSA SIGNATURE
+    crt_key = f"csr/{device_id}.crt"
+
+    # -------- FIX #2: Load certificate from S3 --------
     try:
-        public_key.verify(
+        cert_obj = S3.get_object(Bucket=BUCKET, Key=crt_key)
+        cert_pem = cert_obj["Body"].read().decode()
+        cert = x509.load_pem_x509_certificate(cert_pem.encode())
+    except Exception as e:
+        return respond(400, {
+            "error": "Device certificate not found",
+            "detail": str(e)
+        })
+
+    pub = cert.public_key()
+
+    # -------- VERIFY RSA SIGNATURE --------
+    try:
+        pub.verify(
             signature,
-            challenge,
+            challenge.encode(),
             padding.PKCS1v15(),
             hashes.SHA256()
         )
     except Exception as e:
-        return {"statusCode": 400, "body": f"Invalid signature: {str(e)}"}
+        return respond(400, {"error": "Signature verification failed", "detail": str(e)})
 
-    # Update attestation record
-    table.update_item(
+    # -------- FIX #3: Validate that the cert exists in DynamoDB --------
+    try:
+        item = TABLE.get_item(Key={"device_id": device_id}).get("Item", None)
+        if not item:
+            return respond(400, {"error": "Device not registered"})
+    except Exception as e:
+        return respond(400, {"error": "DynamoDB read failed", "detail": str(e)})
+
+    # -------- UPDATE DEVICE STATUS --------
+    TABLE.update_item(
         Key={"device_id": device_id},
-        UpdateExpression="SET attested = :v",
-        ExpressionAttributeValues={":v": True}
+        UpdateExpression="SET last_attested=:t, attestation_status=:s",
+        ExpressionAttributeValues={
+            ":t": int(time.time()),
+            ":s": "verified"
+        }
     )
 
+    return respond(200, {"message": "Attestation successful", "device": device_id})
+
+
+def respond(code, body):
     return {
-        "statusCode": 200,
-        "body": json.dumps({"result": "attestation_passed"})
+        "statusCode": code,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body)
     }

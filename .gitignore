@@ -58,3 +58,6 @@ Thumbs.db
 # Local tools / cache
 # ========================
 *.json.backup
+
+# Ignore Lambda layer build directory
+modules/lambda_cert_issuer/python/

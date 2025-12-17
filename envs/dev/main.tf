@@ -22,7 +22,6 @@ data "aws_caller_identity" "current" {}
 
 # VPC MODULE
 
-
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -55,7 +54,6 @@ module "iam" {
   aws_region  = "us-east-1"
 }
 
-
 # PCA MODULE
 
 module "pca" {
@@ -83,7 +81,7 @@ module "kms" {
 }
 
 # SECURE S3
- 
+  
 module "secure_s3" {
   source = "../../modules/s3"
 
@@ -104,8 +102,6 @@ module "secure_s3" {
   cert_issuer_lambda_arn        = module.lambda_cert_issuer.lambda_cert_issuer_arn
   cert_issuer_lambda_permission = module.lambda_cert_issuer.lambda_cert_issuer_permission
 }
-
-
 
 # DEVICE IDENTITY MODULE (LAMBDA)
 
@@ -132,21 +128,27 @@ module "lambda_scanner" {
   kms_key_arn             = module.kms.pqc_hybrid_key_arn
 }
 
-# DEVICE API (API GATEWAY)
+# DEVICE API 
 
 module "device_api" {
   source = "../../modules/apigw"
 
-  project_name      = "quantum-safe"
+  project_name = "quantum-safe"
+
+  # /onboard
   lambda_invoke_arn = module.device_identity.device_onboard_lambda_invoke_arn
   lambda_name       = module.device_identity.device_onboard_lambda_name
+
+  # /attest  
+  attestation_lambda_invoke_arn = module.attestation_validator.attestation_lambda_invoke_arn
+  attestation_lambda_name       = module.attestation_validator.attestation_lambda_name
 
   environment = "dev"
   region      = "us-east-1"
   account_id  = data.aws_caller_identity.current.account_id
 }
 
-#LAMBDA CERT ISSUER
+# LAMBDA CERT ISSUER
 module "lambda_cert_issuer" {
   source = "../../modules/lambda_cert_issuer"
 
@@ -165,7 +167,6 @@ module "attestation_validator" {
   kms_key_arn        = module.kms.pqc_hybrid_key_arn
   subordinate_ca_arn = module.pca.subordinate_ca_arn
 }
-
 
 # OUTPUTS
 

@@ -14,6 +14,10 @@ resource "aws_lambda_function" "issuer" {
   source_code_hash = filebase64sha256("${path.module}/issuer.zip")
   timeout          = 30
 
+  layers = [
+  "arn:aws:lambda:us-east-1:394863179010:layer:cryptography-py312:1"
+  ]
+
   environment {
     variables = {
       SUBORDINATE_CA_ARN = var.subordinate_ca_arn
