@@ -1,6 +1,7 @@
 import json
 import boto3
 import os
+import traceback
 
 dynamodb = boto3.client("dynamodb")
 
@@ -8,42 +9,37 @@ DEVICE_TABLE = os.environ.get("DEVICE_TABLE")
 SUB_CA_ARN   = os.environ.get("SUB_CA_ARN")
 
 def handler(event, context):
-    print("Received event:", json.dumps(event))
+    print("EVENT:", json.dumps(event))
 
-    # --- Parse API Gateway payload ---
-    if "body" in event:
-        try:
-            body = json.loads(event["body"])
-        except Exception:
-            return {
-                "statusCode": 400,
-                "body": json.dumps({"error": "Invalid JSON body"})
-            }
-    else:
-        # Direct Lambda invoke (CLI)
-        body = event
+    try:
+        # Parse body from API Gateway
+        body = json.loads(event.get("body", "{}"))
+        device_id = body.get("device_id")
 
-    device_id = body.get("device_id")
-    if not device_id:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "device_id missing"})
-        }
+        if not device_id:
+            return _response(400, {"error": "device_id missing"})
 
-    # --- Write device record ---
-    dynamodb.put_item(
-        TableName=DEVICE_TABLE,
-        Item={"device_id": {"S": device_id}}
-    )
+        # Attempt DynamoDB write
+        print(f"Writing device record for {device_id} to table {DEVICE_TABLE}")
+        dynamodb.put_item(
+            TableName=DEVICE_TABLE,
+            Item={"device_id": {"S": device_id}}
+        )
 
-    return {
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json"
-        },
-        "body": json.dumps({
+        return _response(200, {
             "message": "Device onboarded successfully",
             "device_id": device_id,
             "sub_ca_used": SUB_CA_ARN
         })
+
+    except Exception as e:
+        print("ERROR:", str(e))
+        print(traceback.format_exc())
+        return _response(500, {"error": "Server error", "detail": str(e)})
+
+def _response(code, body):
+    return {
+        "statusCode": code,
+        "headers": {"Content-Type": "application/json"},
+        "body": json.dumps(body)
     }

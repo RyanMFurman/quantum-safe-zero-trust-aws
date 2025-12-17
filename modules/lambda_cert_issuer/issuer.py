@@ -1,5 +1,4 @@
 import boto3
-import base64
 import json
 import time
 import os
@@ -14,8 +13,7 @@ SUB_CA_ARN = os.environ["SUBORDINATE_CA_ARN"]
 TABLE_NAME = os.environ["DEVICE_TABLE"]
 DEVICE_TABLE = dynamodb.Table(TABLE_NAME)
 
-# OID for PQC extension (device-side embeds Kyber pubkey here)
-PQC_OID = x509.ObjectIdentifier("2.5.29.99")
+PQC_OID = x509.ObjectIdentifier("1.3.6.1.4.1.99999.1.1")
 
 def lambda_handler(event, context):
     print("Received event:", json.dumps(event))
@@ -26,84 +24,76 @@ def lambda_handler(event, context):
 
     print(f"Processing CSR from s3://{bucket}/{key}")
 
-    # --- 1. Download CSR ---
-    csr_obj = s3.get_object(Bucket=bucket, Key=key)
-    csr_body = csr_obj["Body"].read()
+    csr_body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
 
-    # Parse CSR to extract PQC extension if present
+    # Parse CSR + PQC extension
+    pqc_pubkey = None
     try:
         csr = x509.load_pem_x509_csr(csr_body, default_backend())
         try:
             ext = csr.get_extension_for_oid(PQC_OID)
-            pqc_pubkey = ext.value.value  # raw PQC public key bytes
-            print(f"PQC public key extracted ({len(pqc_pubkey)} bytes)")
-        except Exception:
-            pqc_pubkey = None
-            print("No PQC public key found in CSR")
+            pqc_pubkey = ext.value.value
+            print(f"PQC pubkey found: {len(pqc_pubkey)} bytes")
+        except:
+            print("No PQC extension found")
     except Exception as e:
-        print("CSR parsing failed:", e)
-        pqc_pubkey = None
+        print("CSR parse failed:", e)
 
-    # --- 2. Submit CSR to ACM-PCA ---
-    print("Submitting CSR to ACM-PCA")
-    issue_resp = pca.issue_certificate(
+    print("Submitting CSR...")
+    issued = pca.issue_certificate(
         CertificateAuthorityArn=SUB_CA_ARN,
         Csr=csr_body,
         SigningAlgorithm="SHA256WITHRSA",
         Validity={"Value": 365, "Type": "DAYS"}
     )
 
-    cert_arn = issue_resp["CertificateArn"]
-    print("CertificateArn:", cert_arn)
+    cert_arn = issued["CertificateArn"]
+    print("Cert ARN:", cert_arn)
 
-    # --- 3. Poll until certificate is issued ---
+    # Poll until certificate is ready
     cert_pem = None
     chain_pem = None
 
-    for _ in range(10):
+    for _ in range(15):
         try:
-            get_resp = pca.get_certificate(
+            resp = pca.get_certificate(
                 CertificateAuthorityArn=SUB_CA_ARN,
                 CertificateArn=cert_arn
             )
-            cert_pem = get_resp["Certificate"]
-            chain_pem = get_resp["CertificateChain"]
+            cert_pem = resp["Certificate"]        # Already PEM TEXT
+            chain_pem = resp["CertificateChain"]  # Already PEM TEXT
             break
         except Exception:
-            time.sleep(2)
+            time.sleep(1)
 
     if cert_pem is None:
         raise Exception("Timed out waiting for certificate")
 
-    print("Certificate issued successfully")
+    print("Certificate ready!")
 
-    # --- 4. Prepare metadata ---
     timestamp = int(time.time())
-
     metadata = {
         "certificate_arn": cert_arn,
         "csr_key": key,
         "timestamp": timestamp,
-        "pqc_public_key_length": len(pqc_pubkey) if pqc_pubkey else 0,
-        "has_pqc": bool(pqc_pubkey)
+        "has_pqc": bool(pqc_pubkey),
+        "pqc_public_key_length": len(pqc_pubkey) if pqc_pubkey else 0
     }
 
     cert_key = key.replace(".csr", ".crt")
     meta_key = key.replace(".csr", ".json")
 
-    # --- 5. Store certificate + metadata in S3 ---
-    s3.put_object(Bucket=bucket, Key=cert_key, Body=cert_pem)
-    s3.put_object(Bucket=bucket, Key=meta_key, Body=json.dumps(metadata))
+    # Store files
+    s3.put_object(Bucket=bucket, Key=cert_key, Body=cert_pem.encode())
+    s3.put_object(Bucket=bucket, Key=meta_key, Body=json.dumps(metadata).encode())
 
-    print(f"Saved certificate at: {cert_key}")
-    print(f"Saved metadata at: {meta_key}")
+    print("Saved cert + metadata")
 
-    # --- 6. Update DynamoDB ---
     device_id = key.split("/")[-1].replace(".csr", "")
 
     DEVICE_TABLE.update_item(
         Key={"device_id": device_id},
-        UpdateExpression="SET certificate_arn = :c, cert_timestamp = :t, has_pqc = :p",
+        UpdateExpression="SET certificate_arn=:c, cert_timestamp=:t, has_pqc=:p",
         ExpressionAttributeValues={
             ":c": cert_arn,
             ":t": timestamp,
@@ -111,11 +101,11 @@ def lambda_handler(event, context):
         }
     )
 
-    print(f"Updated DynamoDB for device {device_id}")
+    print("DynamoDB updated for:", device_id)
 
     return {
         "status": "ok",
-        "certificate_arn": cert_arn,
         "device_id": device_id,
-        "pqc": bool(pqc_pubkey)
+        "certificate_arn": cert_arn,
+        "has_pqc": bool(pqc_pubkey)
     }
