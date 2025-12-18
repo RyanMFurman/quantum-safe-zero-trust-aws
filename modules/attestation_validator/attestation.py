@@ -66,10 +66,20 @@ def lambda_handler(event, context):
         return respond(400, {"error": "Signature verification failed", "detail": str(e)})
 
     # -------- FIX #3: Validate that the cert exists in DynamoDB --------
+    # -------- STEP 3: Enforce PQC compliance --------
     try:
         item = TABLE.get_item(Key={"device_id": device_id}).get("Item", None)
+        
         if not item:
             return respond(400, {"error": "Device not registered"})
+        
+        # STEP 3: Check PQC compliance
+        if not item.get("has_pqc", False):
+            return respond(400, {
+                "error": "Device is NOT PQC compliant",
+                "compliance_state": item.get("compliance_state", "legacy")
+            })
+            
     except Exception as e:
         return respond(400, {"error": "DynamoDB read failed", "detail": str(e)})
 
@@ -83,7 +93,11 @@ def lambda_handler(event, context):
         }
     )
 
-    return respond(200, {"message": "Attestation successful", "device": device_id})
+    return respond(200, {
+        "message": "Attestation successful",
+        "device": device_id,
+        "compliance_state": item.get("compliance_state", "pqc_ok")
+    })
 
 
 def respond(code, body):
