@@ -61,3 +61,8 @@ Thumbs.db
 
 # Ignore Lambda layer build directory
 modules/lambda_cert_issuer/python/
+
+# Ignore PQC build directory
+modules/pqc/build
+
+modules/pqc/venvreset

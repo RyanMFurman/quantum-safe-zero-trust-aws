@@ -8,13 +8,13 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.x509.oid import NameOID
-from cryptography.x509 import ObjectIdentifier   # <-- FIXED IMPORT
+from cryptography.x509 import ObjectIdentifier
 
-# Kyber Implementation
+from asn1crypto.core import OctetString
 from kyber_pure import PureKyber512
 
 
-# CONFIGURATION
+# CONFIG
 
 DEVICE_ID = "device15test"
 BUCKET = "quantum-safe-artifacts-dev"
@@ -26,14 +26,12 @@ META_KEY = f"csr/{DEVICE_ID}.json"
 API_URL = "https://cvv14bi0b0.execute-api.us-east-1.amazonaws.com/dev/onboard"
 ATTEST_URL = "https://cvv14bi0b0.execute-api.us-east-1.amazonaws.com/dev/attest"
 
-# Custom OID for embedding Kyber512 PQC public key
 PQC_OID = ObjectIdentifier("1.3.6.1.4.1.99999.1.1")
 
 s3 = boto3.client("s3")
 
-# ==============================
-# 1. RSA Keypair
-# ==============================
+
+# RSA Keypair
 
 print("Generating RSA keypair...")
 rsa_key = rsa.generate_private_key(
@@ -41,18 +39,21 @@ rsa_key = rsa.generate_private_key(
     key_size=2048
 )
 
-# ==============================
-# 2. PQC Kyber Keypair
-# ==============================
+
+# Kyber PQC Keypair
 
 print("Generating Kyber512 PQC keypair...")
 pqc_pk, pqc_sk = PureKyber512.keygen()
 
-# ==============================
-# 3. Build CSR with PQC Extension
-# ==============================
+
+# Build CSR with TRIPLE ASN.1 Wrapped PQC Extension
+
 
 print("Building CSR with PQC extension...")
+
+lvl1 = OctetString(pqc_pk).dump()      # raw → ASN.1
+lvl2 = OctetString(lvl1).dump()        # wrap again
+encoded_pqc = OctetString(lvl2).dump() # final outer wrapper
 
 csr = (
     x509.CertificateSigningRequestBuilder()
@@ -64,7 +65,7 @@ csr = (
     .add_extension(
         x509.UnrecognizedExtension(
             oid=PQC_OID,
-            value=pqc_pk  # Raw PQC public key bytes
+            value=encoded_pqc
         ),
         critical=False
     )
@@ -73,27 +74,24 @@ csr = (
 
 csr_pem = csr.public_bytes(serialization.Encoding.PEM)
 
-print("\nCSR successfully built with PQC extension.")
+print("\nCSR successfully built with TRIPLE-WRAPPED PQC extension.")
 print(f"PQC Key Length Embedded: {len(pqc_pk)} bytes")
 
-# ==============================
-# 4. Call Onboarding API
-# ==============================
+
+# Call Onboarding API
 
 print("\nCalling onboarding API...")
 resp = requests.post(API_URL, json={"device_id": DEVICE_ID})
 print("API response:", resp.text)
 
-# ==============================
-# 5. Upload CSR
-# ==============================
+
+# Upload CSR → S3
 
 print(f"\nUploading CSR → s3://{BUCKET}/{CSR_KEY}")
 s3.put_object(Bucket=BUCKET, Key=CSR_KEY, Body=csr_pem)
 
-# ==============================
-# 6. Wait for Certificate
-# ==============================
+
+# Wait for Certificate
 
 print("\nWaiting for certificate issuance...")
 cert_pem = None
@@ -110,9 +108,8 @@ for _ in range(25):
 if cert_pem is None:
     raise RuntimeError("Timed out waiting for certificate issuance")
 
-# ==============================
-# 7. Save Keys & Certs Locally
-# ==============================
+
+# Save Keys
 
 with open("device.key", "wb") as f:
     f.write(
@@ -132,22 +129,20 @@ with open("device_pqc.pk", "wb") as f:
 with open("device_pqc.sk", "wb") as f:
     f.write(pqc_sk)
 
-# ==============================
-# 8. Fetch Metadata
-# ==============================
+
+# Load metadata
 
 meta = s3.get_object(Bucket=BUCKET, Key=META_KEY)["Body"].read().decode()
 print("\nMetadata:", meta)
 
 print("\nDevice onboarding + PQC key provisioning complete!")
 
-# ==============================
-# DEVICE ATTESTATION
-# ==============================
+
+# ATTESTATION
+
 
 print("\n========== ATTESTATION PHASE ==========\n")
 
-# 1️⃣ Request challenge
 print("Requesting attestation challenge...")
 
 challenge_resp = requests.post(
@@ -158,14 +153,12 @@ challenge_resp = requests.post(
 challenge = challenge_resp.json()["challenge"]
 print("Challenge received:", challenge)
 
-# 2️⃣ Sign challenge w/ RSA private key
 signature = rsa_key.sign(
     challenge.encode(),
     padding.PKCS1v15(),
     hashes.SHA256()
 )
 
-# 3️⃣ Send back signature
 attest_resp = requests.post(
     ATTEST_URL,
     json={
@@ -176,5 +169,4 @@ attest_resp = requests.post(
 )
 
 print("\nAttestation result:", attest_resp.json())
-
 print("\nFULL DEVICE ONBOARDING + ATTESTATION COMPLETE!\n")
