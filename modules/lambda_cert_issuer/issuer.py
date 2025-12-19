@@ -27,22 +27,26 @@ def lambda_handler(event, context):
 
     print(f"Processing CSR from s3://{bucket}/{key}")
 
-    csr_body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
-
-    # Parse CSR and extract PQC extension safely
-    pqc_pubkey = None
     try:
-        csr = x509.load_pem_x509_csr(csr_body, default_backend())
+        csr_body = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
 
-        # FIXED: Robust extraction of unrecognized (custom) extension
+        # Parse CSR and extract PQC extension safely
+        csr = x509.load_pem_x509_csr(csr_body)  
+
+        pqc_pubkey = None
+
         for ext in csr.extensions:
             if ext.oid == PQC_OID:
-                # ext.value is an UnrecognizedExtension instance
-                # Its .value attribute contains the raw OCTET STRING bytes
-                pqc_pubkey = ext.value.value
-                print(f"PQC extension found! Raw length = {len(pqc_pubkey)} bytes")
-                break
+                print("PQC extension located")
+                try:
+                    pqc_pubkey = ext.value.value
+                except:
+                    from asn1crypto.core import OctetString  
+                    pqc_pubkey = OctetString.load(ext.value.value).native
 
+                print(f"PQC pubkey extracted: {len(pqc_pubkey)} bytes")
+                break   
+            
         if pqc_pubkey is None:
             print("No PQC extension found in CSR")
 
