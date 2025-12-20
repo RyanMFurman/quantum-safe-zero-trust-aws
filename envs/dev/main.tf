@@ -81,7 +81,7 @@ module "kms" {
 }
 
 # SECURE S3
-  
+
 module "secure_s3" {
   source = "../../modules/s3"
 
@@ -112,9 +112,9 @@ module "device_identity" {
   environment         = "dev"
   artifact_bucket_arn = module.secure_s3.bucket_arn
 
-  device_role_arn     = module.iam.device_role_arn
-  device_role_name    = module.iam.device_role_name
-  subordinate_ca_arn  = module.pca.subordinate_ca_arn
+  device_role_arn    = module.iam.device_role_arn
+  device_role_name   = module.iam.device_role_name
+  subordinate_ca_arn = module.pca.subordinate_ca_arn
 }
 
 # LAMBDA SCANNER MODULE
