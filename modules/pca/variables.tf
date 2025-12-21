@@ -1,7 +1,16 @@
+variable "use_existing_subordinate_ca" {
+  type    = bool
+  default = false
+}
+
+variable "existing_subordinate_ca_arn" {
+  type    = string
+  default = null
+}
+
 variable "root_ca_arn" {
-  description = "Existing AWS ACM Private Root CA ARN"
-  type        = string
-  }
+  type = string
+}
 
 variable "subordinate_ca_config" {
   type = object({

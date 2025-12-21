@@ -13,26 +13,29 @@ S3 = boto3.client("s3")
 
 BUCKET = "quantum-safe-artifacts-dev"
 
-def lambda_handler(event, context):
 
-    # -------- FIX #1: Parse body safely --------
+def lambda_handler(event, context):
+    print("EVENT:", json.dumps(event))
+
+    # -------- SAFE BODY PARSE --------
     try:
-        body = json.loads(event.get("body", "{}"))
-    except:
-        return respond(400, {"error": "Invalid request format"})
+        raw_body = event.get("body", "{}")
+        print("RAW BODY:", raw_body)
+        body = json.loads(raw_body)
+    except Exception:
+        return respond(400, {"error": "Invalid request JSON"})
 
     if "device_id" not in body:
         return respond(400, {"error": "Missing device_id"})
 
     device_id = body["device_id"]
 
-    # -------- HANDLE CHALLENGE REQUEST --------
+    # -------- CHALLENGE GENERATION --------
     if body.get("request") == "challenge":
         challenge = f"attest-{device_id}-{int(time.time())}"
         return respond(200, {"challenge": challenge})
 
-
-    # -------- SIGNATURE VERIFICATION --------
+    # -------- VERIFY SIGNATURE REQUEST --------
     if "challenge" not in body or "signature" not in body:
         return respond(400, {"error": "Missing challenge or signature"})
 
@@ -41,16 +44,13 @@ def lambda_handler(event, context):
 
     crt_key = f"csr/{device_id}.crt"
 
-    # -------- FIX #2: Load certificate from S3 --------
+    # -------- LOAD CERTIFICATE FROM S3 --------
     try:
         cert_obj = S3.get_object(Bucket=BUCKET, Key=crt_key)
         cert_pem = cert_obj["Body"].read().decode()
         cert = x509.load_pem_x509_certificate(cert_pem.encode())
     except Exception as e:
-        return respond(400, {
-            "error": "Device certificate not found",
-            "detail": str(e)
-        })
+        return respond(400, {"error": "Device certificate not found", "detail": str(e)})
 
     pub = cert.public_key()
 
@@ -65,25 +65,23 @@ def lambda_handler(event, context):
     except Exception as e:
         return respond(400, {"error": "Signature verification failed", "detail": str(e)})
 
-    # -------- FIX #3: Validate that the cert exists in DynamoDB --------
-    # -------- STEP 3: Enforce PQC compliance --------
+    # -------- CHECK DYNAMODB PQC COMPLIANCE --------
     try:
         item = TABLE.get_item(Key={"device_id": device_id}).get("Item", None)
-        
+
         if not item:
             return respond(400, {"error": "Device not registered"})
-        
-        # STEP 3: Check PQC compliance
+
         if not item.get("has_pqc", False):
             return respond(400, {
                 "error": "Device is NOT PQC compliant",
                 "compliance_state": item.get("compliance_state", "legacy")
             })
-            
+
     except Exception as e:
         return respond(400, {"error": "DynamoDB read failed", "detail": str(e)})
 
-    # -------- UPDATE DEVICE STATUS --------
+    # -------- UPDATE ATTESTATION STATE --------
     TABLE.update_item(
         Key={"device_id": device_id},
         UpdateExpression="SET last_attested=:t, attestation_status=:s",

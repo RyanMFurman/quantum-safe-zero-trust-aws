@@ -59,7 +59,8 @@ resource "aws_iam_role_policy" "inline" {
           "kms:Decrypt",
           "kms:DescribeKey"
         ],
-        Resource = "arn:aws:kms:us-east-1:${data.aws_caller_identity.current.account_id}:key/3a4bf097-0f6f-453e-b8ad-d8a95eca25d4"
+        Resource = "arn:aws:kms:us-east-1:${data.aws_caller_identity.current.account_id}:key/f740bd47-baaa-4773-8545-968422330234"
+
       }
     ]
   })
