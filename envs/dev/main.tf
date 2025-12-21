@@ -61,6 +61,9 @@ module "pca" {
 
   root_ca_arn = "arn:aws:acm-pca:us-east-1:394863179010:certificate-authority/05ead21a-a5bf-4175-a023-a08849f1c386"
 
+  use_existing_subordinate_ca = true
+  existing_subordinate_ca_arn = "arn:aws:acm-pca:us-east-1:394863179010:certificate-authority/b1dc9cb7-fbe0-4f6c-bd4e-5fa488050404"
+
   subordinate_ca_config = {
     common_name         = "quantum-sub-ca"
     organization        = "QuantumSafe"
@@ -166,6 +169,16 @@ module "attestation_validator" {
   device_table_name  = module.device_identity.device_registry_name
   kms_key_arn        = module.kms.pqc_hybrid_key_arn
   subordinate_ca_arn = module.pca.subordinate_ca_arn
+}
+
+# PQC MONITORING 
+
+module "pqc_monitoring" {
+  source = "../../modules/pqc_monitoring"
+
+  project_name            = "dev"
+  cert_issuer_lambda_name = module.lambda_cert_issuer.lambda_cert_issuer_name
+  attestation_lambda_name = module.attestation_validator.attestation_lambda_name
 }
 
 # OUTPUTS

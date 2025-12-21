@@ -15,7 +15,7 @@ resource "aws_lambda_function" "issuer" {
   timeout          = 30
 
   layers = [
-  "arn:aws:lambda:us-east-1:394863179010:layer:cryptography-py312:1"
+  "arn:aws:lambda:us-east-1:394863179010:layer:cryptography-py312:3"
   ]
 
   environment {

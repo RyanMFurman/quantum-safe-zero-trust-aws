@@ -31,6 +31,7 @@ oqs-venv/
 *.key
 *.pk
 *.sk
+.txt
 
 # Device test artifacts
 modules/pqc/device.key
@@ -58,7 +59,7 @@ Thumbs.db
 # Local tools / cache
 # ========================
 *.json.backup
-
+*.json
 # Ignore Lambda layer build directory
 modules/lambda_cert_issuer/python/
 
@@ -66,3 +67,10 @@ modules/lambda_cert_issuer/python/
 modules/pqc/build
 
 modules/pqc/venvreset
+
+#Ignore Enoded CA
+envs/dev/subca_encoded.txt
+modules/pca/subca_openssl.cnf
+modules/pca/subca_encoded.txt
+modules/device_identity/payload.b64
+modules/device_identity/payload.json~

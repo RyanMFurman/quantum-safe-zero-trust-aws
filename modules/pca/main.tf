@@ -7,11 +7,21 @@ data "aws_acmpca_certificate_authority" "root" {
 }
 
 # -------------------------------------------------
-# CREATE SUBORDINATE CA
+# OPTION 1 — USE EXISTING SUBORDINATE CA
+# -------------------------------------------------
+
+locals {
+  subordinate_ca_arn = var.use_existing_subordinate_ca ? var.existing_subordinate_ca_arn : aws_acmpca_certificate_authority.subordinate[0].arn
+}
+
+# -------------------------------------------------
+# OPTION 2 — CREATE SUBORDINATE CA (ONLY IF NEEDED)
 # -------------------------------------------------
 
 resource "aws_acmpca_certificate_authority" "subordinate" {
-  type  = "SUBORDINATE"
+  count = var.use_existing_subordinate_ca ? 0 : 1
+
+  type = "SUBORDINATE"
 
   certificate_authority_configuration {
     key_algorithm     = "RSA_4096"
@@ -31,8 +41,18 @@ resource "aws_acmpca_certificate_authority" "subordinate" {
   usage_mode                      = "GENERAL_PURPOSE"
 }
 
-# Save CSR for manual signing
+# -------------------------------------------------
+# ONLY WRITE CSR IF WE CREATED A NEW SUB CA
+# -------------------------------------------------
+
 resource "local_file" "subordinate_csr" {
+  count    = var.use_existing_subordinate_ca ? 0 : 1
   filename = "${path.module}/subordinate_ca.csr"
-  content  = aws_acmpca_certificate_authority.subordinate.certificate_signing_request
+  content  = aws_acmpca_certificate_authority.subordinate[0].certificate_signing_request
+
+  depends_on = [
+    aws_acmpca_certificate_authority.subordinate
+  ]
 }
+
+
