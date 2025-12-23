@@ -12,3 +12,8 @@ variable "attestation_lambda_name" {
   type        = string
   description = "Name of the attestation validator Lambda"
 }
+
+variable "subordinate_ca_arn" {
+  description = "ARN of the subordinate CA for monitoring certificate issuance"
+  type        = string
+}

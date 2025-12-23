@@ -14,9 +14,9 @@ from asn1crypto.core import OctetString
 from kyber_pure import PureKyber512
 
 
-# =========================================================
+
 # CONFIG
-# =========================================================
+
 
 DEVICE_ID = "device15test"
 BUCKET = "quantum-safe-artifacts-dev"
@@ -32,18 +32,15 @@ PQC_OID = ObjectIdentifier("1.3.6.1.4.1.99999.1.1")
 
 s3 = boto3.client("s3")
 
-# =========================================================
 #  KEY MANAGEMENT (FIXED — PERSIST KEYS!)
-# =========================================================
 
 RSA_KEY_PATH = "device_rsa_key.pem"
 PK_PATH = "device_pqc.pk"
 SK_PATH = "device_pqc.sk"
 
 
-# -----------------------------
 # Load or create RSA keypair
-# -----------------------------
+
 if os.path.exists(RSA_KEY_PATH):
     print("Loading existing RSA keypair...")
     with open(RSA_KEY_PATH, "rb") as f:
@@ -65,9 +62,8 @@ else:
     print("Saved RSA key to:", RSA_KEY_PATH)
 
 
-# -----------------------------
 # Load or create PQC Kyber keys
-# -----------------------------
+
 if os.path.exists(PK_PATH) and os.path.exists(SK_PATH):
     print("Loading existing Kyber512 keys...")
     with open(PK_PATH, "rb") as f:
@@ -84,9 +80,7 @@ else:
     print("Saved PQC keys → device_pqc.pk / device_pqc.sk")
 
 
-# =========================================================
 #  BUILD CSR WITH PQC EXTENSION
-# =========================================================
 
 print("\nBuilding CSR with PQC extension...")
 
@@ -114,9 +108,7 @@ print("CSR successfully built with TRIPLE-WRAPPED PQC extension.")
 print(f"PQC Key Length Embedded: {len(pqc_pk)} bytes")
 
 
-# =========================================================
 #  ONBOARDING
-# =========================================================
 
 print("\nCalling onboarding API...")
 resp = requests.post(API_URL, json={"device_id": DEVICE_ID})
@@ -127,9 +119,7 @@ print(f"\nUploading CSR → s3://{BUCKET}/{CSR_KEY}")
 s3.put_object(Bucket=BUCKET, Key=CSR_KEY, Body=csr_pem)
 
 
-# =========================================================
 #  WAIT FOR CERTIFICATE ISSUANCE
-# =========================================================
 
 print("\nWaiting for certificate issuance...")
 cert_pem = None
@@ -164,9 +154,7 @@ with open("device.key", "wb") as f:
 print("\nDevice onboarding + PQC key provisioning complete!")
 
 
-# =========================================================
 #  ATTESTATION
-# =========================================================
 
 print("\n========== ATTESTATION PHASE ==========\n")
 

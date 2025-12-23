@@ -179,7 +179,10 @@ module "pqc_monitoring" {
   project_name            = "dev"
   cert_issuer_lambda_name = module.lambda_cert_issuer.lambda_cert_issuer_name
   attestation_lambda_name = module.attestation_validator.attestation_lambda_name
+
+  subordinate_ca_arn = module.pca.subordinate_ca_arn
 }
+
 
 # OUTPUTS
 

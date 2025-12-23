@@ -53,6 +53,9 @@ resource "aws_lambda_function" "onboard" {
   filename         = "${path.module}/onboard.zip"
   source_code_hash = filebase64sha256("${path.module}/onboard.zip")
 
+  # REMOVE the cryptography layer — onboard doesn't need it
+  # layers = []
+
   environment {
     variables = {
       DEVICE_TABLE = aws_dynamodb_table.device_registry.name
