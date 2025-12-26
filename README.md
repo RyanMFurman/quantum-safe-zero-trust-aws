@@ -559,17 +559,6 @@ quantum-safe-zero-trust-aws/
 │   │   ├── terraform.tfstate      # State file (local backend)
 │   │   └── payload.json           # Test API payloads
 │   └── prod/                      # Production environment (future)
-│
-├── scripts/                       # Utility scripts
-│   ├── device_client.py           # Device simulator (onboard + attest)
-│   ├── generate_pqc_keys.py       # Kyber-512 key generation
-│   └── test_attestation.py        # Automated attestation testing
-│
-├── docs/                          # Documentation
-│   ├── architecture.md            # Detailed architecture decisions
-│   ├── pqc_integration.md         # PQC implementation notes
-│   └── deployment.md              # Step-by-step deployment guide
-│
 └── README.md                      # This file
 ```
 
