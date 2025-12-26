@@ -7,30 +7,114 @@
 
 Simple Architecture Diagram
 
-```mermaid
-graph TB
-    Device[IoT Device] -->|Sends CSR| APIGW[API Gateway]
-    APIGW --> Onboard[Onboard Lambda]
-    Onboard --> S3[S3 Bucket<br/>(Stores CSR)]
-    S3 --> Issuer[Certificate Issuer Lambda]
-    Issuer -->|Checks for Kyber key| Issuer
-    Issuer --> PCA[ACM Private CA<br/>(Issues Certificate)]
-    Issuer --> S3Out[S3 Bucket<br/>(Stores Certificate)]
-    Issuer --> DDB[DynamoDB<br/>(Tracks Device State)]
-    Issuer --> CW[CloudWatch<br/>(Metrics & Dashboard)]
+1. High-Level System Architecture
+This diagram shows how a device moves from the outside world into your secure AWS environment.
 
-    Device -->|Requests Challenge| APIGW
-    APIGW --> Attest[Attestation Lambda]
-    Attest --> DDB
-    Attest -->|Verifies Device Owns Key| Attest
+Code snippet
 
-    IAM[IAM Roles<br/>(Least Privilege)] --> Onboard
-    IAM --> Issuer
-    IAM --> Attest
-    KMS[KMS<br/>(Encryption Keys)] --> S3
-    KMS --> DDB
+graph LR
+    subgraph "External"
+        D[IoT Device]
+    end
 
----
+    subgraph "Entry Point (API Layer)"
+        AG[API Gateway]
+        L_ON[Onboarding Lambda]
+        L_AT[Attestation Lambda]
+    end
+
+    subgraph "Security & Identity"
+        PCA[ACM Private CA]
+        KMS[KMS Encryption]
+        DDB[(Device Registry)]
+    end
+
+    subgraph "Storage"
+        S3[Certificate Buckets]
+    end
+
+    %% Flow
+    D -->|1. Enroll| AG
+    AG --> L_ON
+    L_ON -->|2. Issue Cert| PCA
+    PCA -->|3. Save| S3
+    L_ON -->|4. Log Identity| DDB
+    
+    D -->|5. Verify| AG
+    AG --> L_AT
+    L_AT -->|6. Check Status| DDB
+    
+    KMS -.->|Protects| S3
+    KMS -.->|Protects| DDB
+
+    style D fill:#f9f,stroke:#333,stroke-width:2px
+    style AG fill:#bbf,stroke:#333,stroke-width:2px
+    style PCA fill:#dfd,stroke:#333,stroke-width:2px
+2. The "Hybrid" Identity (The Core Innovation)
+This explains specifically what is happening inside the "Quantum-Safe" part of the diagram. It shows how we combine Old + New security.
+
+Code snippet
+
+graph TD
+    subgraph "The Device's Key Bundle"
+        K1[RSA Key: Works with Today's Tech]
+        K2[Kyber Key: Resists Quantum Attacks]
+    end
+
+    K1 & K2 --> CSR[One Certificate Request]
+    
+    subgraph "The Identity Result"
+        Cert[X.509 Digital Certificate]
+        Ext[PQC Extension: OID 1.3.6.1.4.1...]
+    end
+
+    CSR -->|Signed by CA| Cert
+    Cert -->|Contains| Ext
+    Ext -->|Carries| K2
+
+    style K2 fill:#ff9,stroke:#f66,stroke-width:3px
+    style Ext fill:#ff9,stroke:#f66,stroke-width:3px
+3. The "Challenge-Response" Flow
+This is how the Attestation Lambda actually proves a device isn't an impostor.
+
+Code snippet
+
+sequenceDiagram
+    autonumber
+    participant Device
+    participant Lambda
+    participant DB as DynamoDB
+
+    Device->>Lambda: "I want to connect"
+    Lambda->>Device: Challenge: "Sign this random number"
+    Device->>Device: Sign with Private Key
+    Device->>Lambda: Send Signed Answer
+    Lambda->>DB: Get Device's Public Key
+    DB-->>Lambda: Public Key + PQC Status
+    Lambda->>Lambda: Verify Signature
+    Note over Lambda: If Match: Access Granted
+    Lambda-->>Device: 200 OK (Verified)
+4. Compliance State Machine
+This diagram shows the "Lifecycle" of a device in your system.
+
+Code snippet
+
+stateDiagram-v2
+    [*] --> Unregistered
+    Unregistered --> Onboarding
+    
+    state Onboarding {
+        direction LR
+        CheckPQC --> HasKyber: Yes
+        CheckPQC --> NoKyber: No
+    }
+
+    HasKyber --> PQC_Ready: Compliant
+    NoKyber --> Legacy: Warning (Action Required)
+    
+    PQC_Ready --> Expired: Time passes
+    Legacy --> Expired: Time passes
+    Expired --> Onboarding: Renewal
 
 **Built with AWS managed services, Terraform, and NIST-recommended post-quantum cryptography**
 
