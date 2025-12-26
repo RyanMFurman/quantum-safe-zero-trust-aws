@@ -176,12 +176,20 @@ module "attestation_validator" {
 module "pqc_monitoring" {
   source = "../../modules/pqc_monitoring"
 
-  project_name            = "dev"
-  cert_issuer_lambda_name = module.lambda_cert_issuer.lambda_cert_issuer_name
-  attestation_lambda_name = module.attestation_validator.attestation_lambda_name
+  project_name = "dev"
 
-  subordinate_ca_arn = module.pca.subordinate_ca_arn
+  cert_issuer_lambda_name    = module.lambda_cert_issuer.lambda_cert_issuer_name
+  attestation_lambda_name    = module.attestation_validator.attestation_lambda_name
+  device_onboard_lambda_name = module.device_identity.device_onboard_lambda_name
+  scanner_lambda_name        = module.lambda_scanner.scanner_lambda_name
+
+  subordinate_ca_arn   = module.pca.subordinate_ca_arn
+  artifact_bucket_name = module.secure_s3.bucket_name
+  dynamodb_table_name  = module.device_identity.device_registry_name
+
+  api_gateway_name = module.device_api.api_name
 }
+
 
 
 # OUTPUTS

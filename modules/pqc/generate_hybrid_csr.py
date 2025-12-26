@@ -33,16 +33,13 @@ print("Loaded PQC keys.")
 print(f"Dilithium pub length: {len(dilithium_pub)} bytes")
 print(f"Kyber pub length: {len(kyber_pub)} bytes")
 
-# ---------------------------------------------------------------------
 # Step 1: Generate ECC keypair (required by ACM-PCA)
-# ---------------------------------------------------------------------
+
 ecc_key = ec.generate_private_key(ec.SECP256R1())
 
 print("Generated ECC keypair.")
 
-# ---------------------------------------------------------------------
 # Step 2: Build CSR with PQC extensions
-# ---------------------------------------------------------------------
 
 # OIDs for custom extensions
 OID_DILITHIUM = ObjectIdentifier("1.3.6.1.4.1.99999.1")
@@ -72,9 +69,7 @@ csr = csr_builder.sign(
     algorithm=hashes.SHA256(),
 )
 
-# ---------------------------------------------------------------------
 # Step 3: Write outputs
-# ---------------------------------------------------------------------
 
 with open("device_ecc_key.pem", "wb") as f:
     f.write(
