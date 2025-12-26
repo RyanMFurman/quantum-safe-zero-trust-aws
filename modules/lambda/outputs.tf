@@ -9,3 +9,7 @@ output "allow_s3_permission" {
 output "scanner_dlq_arn" {
   value = aws_sqs_queue.dlq.arn
 }
+
+output "scanner_lambda_name" {
+  value = aws_lambda_function.scanner.function_name
+}
