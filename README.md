@@ -4,118 +4,61 @@
 > **Post-quantum ready device identity pipeline built on AWS with automated certificate lifecycle management and compliance monitoring**
 
 ## System Architecture Overview
-
-Simple Architecture Diagram
-
-1. High-Level System Architecture
-This diagram shows how a device moves from the outside world into your secure AWS environment.
-
-Code snippet
-
-graph LR
-    subgraph "External"
+1. System ArchitectureThis is the high-level map of how devices interact with the AWS Cloud.Code snippetgraph TB
+    subgraph "Device Layer"
         D[IoT Device]
     end
 
-    subgraph "Entry Point (API Layer)"
+    subgraph "API Layer (The Entryway)"
         AG[API Gateway]
-        L_ON[Onboarding Lambda]
-        L_AT[Attestation Lambda]
+        L1[Onboarding Lambda]
+        L3[Attestation Lambda]
     end
 
-    subgraph "Security & Identity"
-        PCA[ACM Private CA]
-        KMS[KMS Encryption]
+    subgraph "Identity Pipeline (The Factory)"
+        S3IN[CSR Storage]
+        L2[Cert Issuer Lambda]
+        PCA[Private CA]
+        S3OUT[Cert Storage]
+    end
+
+    subgraph "Data & Security (The Vault)"
         DDB[(Device Registry)]
+        KMS[Encryption Keys]
+        CW[Monitoring]
     end
 
-    subgraph "Storage"
-        S3[Certificate Buckets]
-    end
-
-    %% Flow
-    D -->|1. Enroll| AG
-    AG --> L_ON
-    L_ON -->|2. Issue Cert| PCA
-    PCA -->|3. Save| S3
-    L_ON -->|4. Log Identity| DDB
+    %% Flows
+    D -->|1. Request ID| AG
+    AG --> L1
+    L1 --> S3IN
+    S3IN --> L2
+    L2 -->|2. Sign Cert| PCA
+    PCA --> L2
+    L2 --> S3OUT
+    L2 -->|3. Save State| DDB
     
-    D -->|5. Verify| AG
-    AG --> L_AT
-    L_AT -->|6. Check Status| DDB
+    D -->|4. Prove Identity| AG
+    AG --> L3
+    L3 -->|5. Verify| DDB
     
-    KMS -.->|Protects| S3
-    KMS -.->|Protects| DDB
+    L1 & L2 & L3 -.->|Logs| CW
+    KMS -.->|Protects Data| S3IN & S3OUT & DDB
+2. The Hybrid Certificate Flow (Step-by-Step)Specifically explaining how the Post-Quantum pieces fit together.Key Generation: The device creates a Hybrid Keypair. It includes a standard RSA key (for today) and a Kyber-512 key (for quantum protection).The Request (CSR): The device sends a request containing both keys. The Kyber key is hidden in a "Custom Extension" (identified by a specific code called an OID).Validation: The Issuer Lambda acts as a filter. It opens the request, finds the Kyber key, and confirms the device is "Quantum-Safe."The ID Card (X.509): The Private CA issues a certificate. This certificate is now a "Hybrid ID" that works with existing systems but carries the quantum-safe key for the future.3. The Attestation WorkflowHow the system verifies a device is real and compliant after it has been onboarded.Code snippetsequenceDiagram
+    participant Device as 🔒 Device
+    participant Lambda as ⚡ Attestation Lambda
+    participant DB as 🗄️ Device Registry
 
-    style D fill:#f9f,stroke:#333,stroke-width:2px
-    style AG fill:#bbf,stroke:#333,stroke-width:2px
-    style PCA fill:#dfd,stroke:#333,stroke-width:2px
-2. The "Hybrid" Identity (The Core Innovation)
-This explains specifically what is happening inside the "Quantum-Safe" part of the diagram. It shows how we combine Old + New security.
-
-Code snippet
-
-graph TD
-    subgraph "The Device's Key Bundle"
-        K1[RSA Key: Works with Today's Tech]
-        K2[Kyber Key: Resists Quantum Attacks]
-    end
-
-    K1 & K2 --> CSR[One Certificate Request]
-    
-    subgraph "The Identity Result"
-        Cert[X.509 Digital Certificate]
-        Ext[PQC Extension: OID 1.3.6.1.4.1...]
-    end
-
-    CSR -->|Signed by CA| Cert
-    Cert -->|Contains| Ext
-    Ext -->|Carries| K2
-
-    style K2 fill:#ff9,stroke:#f66,stroke-width:3px
-    style Ext fill:#ff9,stroke:#f66,stroke-width:3px
-3. The "Challenge-Response" Flow
-This is how the Attestation Lambda actually proves a device isn't an impostor.
-
-Code snippet
-
-sequenceDiagram
-    autonumber
-    participant Device
-    participant Lambda
-    participant DB as DynamoDB
-
-    Device->>Lambda: "I want to connect"
-    Lambda->>Device: Challenge: "Sign this random number"
-    Device->>Device: Sign with Private Key
+    Device->>Lambda: Request access (/attest)
+    Lambda->>Device: Send "Challenge" (Random Number)
+    Device->>Device: Sign Challenge with Private Key
     Device->>Lambda: Send Signed Answer
-    Lambda->>DB: Get Device's Public Key
-    DB-->>Lambda: Public Key + PQC Status
+    Lambda->>DB: Fetch Public Key & PQC Status
+    DB-->>Lambda: Return Key Data
     Lambda->>Lambda: Verify Signature
-    Note over Lambda: If Match: Access Granted
-    Lambda-->>Device: 200 OK (Verified)
-4. Compliance State Machine
-This diagram shows the "Lifecycle" of a device in your system.
-
-Code snippet
-
-stateDiagram-v2
-    [*] --> Unregistered
-    Unregistered --> Onboarding
-    
-    state Onboarding {
-        direction LR
-        CheckPQC --> HasKyber: Yes
-        CheckPQC --> NoKyber: No
-    }
-
-    HasKyber --> PQC_Ready: Compliant
-    NoKyber --> Legacy: Warning (Action Required)
-    
-    PQC_Ready --> Expired: Time passes
-    Legacy --> Expired: Time passes
-    Expired --> Onboarding: Renewal
-
+    Note over Lambda: Confirm: Is it Quantum-Ready?
+    Lambda-->>Device: 200 OK (Access Granted)
+4. Compliance Status TableUse this table to explain the "Registry" part of the diagram.StatusMeaningSecurity Levelpqc_okDevice has Kyber-512 keys installed.🟢 High (Quantum-Safe)legacyDevice only has standard RSA keys.🟡 Medium (Needs Upgrade)failedIdentity could not be verified.🔴 None (Access Blocked)Why this is "Zero Trust"In a standard system, you trust a device because it's on your network. In this system (as shown in the diagrams):We never trust the device initially.We verify its specific cryptographic "lock" (Attestation).We encrypt everything at rest and in transit using KMS.We monitor every single attempt to connect via CloudWatch.
 **Built with AWS managed services, Terraform, and NIST-recommended post-quantum cryptography**
 
 ---
