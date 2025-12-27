@@ -334,34 +334,6 @@ Access the CloudWatch dashboard to view:
 
 ---
 
-## Future Enhancements
-
-### Production Readiness
-- [ ] Move secrets from S3 to AWS Secrets Manager
-- [ ] Implement certificate rotation automation (EventBridge + Lambda)
-- [ ] Add CloudHSM for hardware-backed key storage
-- [ ] Enable CloudTrail for complete audit logging
-
-### Security Hardening
-- [ ] Implement API Gateway throttling and rate limiting
-- [ ] Add AWS WAF for DDoS protection
-- [ ] Use Dilithium/SPHINCS+ for PQC signature verification (not just Kyber KEMs)
-- [ ] Add mutual TLS (mTLS) for device authentication
-
-### Scalability
-- [ ] Use Step Functions for orchestration (replace direct Lambda calls)
-- [ ] Implement DynamoDB streams for event-driven compliance updates
-- [ ] Add SQS/SNS for asynchronous CSR processing
-- [ ] Multi-region deployment with Route 53 failover
-
-### DevOps Maturity
-- [ ] CI/CD pipeline (GitHub Actions or AWS CodePipeline)
-- [ ] Automated testing (unit tests, integration tests with LocalStack)
-- [ ] Infrastructure validation (Checkov, tfsec, Terraform Sentinel)
-- [ ] Cost monitoring dashboards
-
----
-
 ##  Resources & References
 
 ### Standards & Specifications
@@ -396,7 +368,7 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 ---
 
-## 👤 Author
+##  Author
 
 **Ryan Furman**
 - LinkedIn: [linkedin.com/in/ryan-furman-594470314](https://linkedin.com/in/ryan-furman-594470314)
