@@ -15,9 +15,7 @@ from asn1crypto.core import OctetString
 from kyber_pure import PureKyber512
 
 
-# ==============================
 #         CLI ARGUMENTS
-# ==============================
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mode", required=True, choices=["onboard", "attest"])
@@ -26,10 +24,7 @@ args = parser.parse_args()
 
 DEVICE_ID = args.device_id
 
-
-# ==============================
 #          CONFIG
-# ==============================
 
 BUCKET = "quantum-safe-artifacts-dev"
 
@@ -45,9 +40,8 @@ PQC_OID = ObjectIdentifier("1.3.6.1.4.1.99999.1.1")
 s3 = boto3.client("s3")
 
 
-# ==============================
 #      LOCAL DEVICE KEYS
-# ==============================
+
 
 RSA_KEY_PATH = "device_rsa_key.pem"
 PK_PATH = "device_pqc.pk"
@@ -92,9 +86,7 @@ else:
     print("Saved PQC keys:", PK_PATH, SK_PATH)
 
 
-# ==============================
 #      BUILD CSR + EXTENSION
-# ==============================
 
 print("\nBuilding CSR with PQC extension...")
 
@@ -121,10 +113,7 @@ csr_pem = csr.public_bytes(serialization.Encoding.PEM)
 print("CSR built successfully with triple-wrapped PQC extension.")
 print(f"PQC Key Length Embedded: {len(pqc_pk)} bytes")
 
-
-# ==============================
 #         ONBOARD MODE
-# ==============================
 
 if args.mode == "onboard":
 
@@ -169,9 +158,7 @@ if args.mode == "onboard":
     exit(0)
 
 
-# ==============================
 #        ATTEST MODE
-# ==============================
 
 print("\n========== ATTESTATION ==========\n")
 print("Requesting challenge...")
