@@ -15,22 +15,25 @@ from asn1crypto.core import OctetString
 from kyber_pure import PureKyber512
 
 
-#         CLI ARGUMENTS
+#                    CLI ARGUMENTS
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--mode", required=True, choices=["onboard", "attest"])
 parser.add_argument("--device-id", required=True)
+parser.add_argument("--legacy", action="store_true",
+                    help="Simulate a legacy device (NO PQC extension)")
 args = parser.parse_args()
 
 DEVICE_ID = args.device_id
 
-#          CONFIG
+
+
+#                          CONFIG
 
 BUCKET = "quantum-safe-artifacts-dev"
 
 CSR_KEY = f"csr/{DEVICE_ID}.csr"
 CRT_KEY = f"csr/{DEVICE_ID}.crt"
-META_KEY = f"csr/{DEVICE_ID}.json"
 
 API_URL = "https://7fokf339cj.execute-api.us-east-1.amazonaws.com/dev/onboard"
 ATTEST_URL = "https://7fokf339cj.execute-api.us-east-1.amazonaws.com/dev/attest"
@@ -40,16 +43,14 @@ PQC_OID = ObjectIdentifier("1.3.6.1.4.1.99999.1.1")
 s3 = boto3.client("s3")
 
 
-#      LOCAL DEVICE KEYS
-
+#              LOCAL DEVICE KEYS (PERSISTENT)
 
 RSA_KEY_PATH = "device_rsa_key.pem"
 PK_PATH = "device_pqc.pk"
 SK_PATH = "device_pqc.sk"
 
 
-# -------- Load or generate RSA key --------
-
+# -------- Load/create RSA key --------
 if os.path.exists(RSA_KEY_PATH):
     print("Loading existing RSA keypair...")
     with open(RSA_KEY_PATH, "rb") as f:
@@ -68,52 +69,67 @@ else:
     print("Saved:", RSA_KEY_PATH)
 
 
-# -------- Load or generate Kyber512 PQC keys --------
+# -------- Load/create PQC Kyber keys --------
+if not args.legacy:
+    if os.path.exists(PK_PATH) and os.path.exists(SK_PATH):
+        print("Loading existing Kyber512 PQC keys...")
+        with open(PK_PATH, "rb") as f:
+            pqc_pk = f.read()
+        with open(SK_PATH, "rb") as f:
+            pqc_sk = f.read()
+    else:
+        print("Generating new Kyber512 PQC keypair...")
+        pqc_pk, pqc_sk = PureKyber512.keygen()
+        with open(PK_PATH, "wb") as f:
+            f.write(pqc_pk)
+        with open(SK_PATH, "wb") as f:
+            f.write(pqc_sk)
+        print("Saved PQC keys:", PK_PATH, SK_PATH)
 
-if os.path.exists(PK_PATH) and os.path.exists(SK_PATH):
-    print("Loading existing Kyber512 PQC keys...")
-    with open(PK_PATH, "rb") as f:
-        pqc_pk = f.read()
-    with open(SK_PATH, "rb") as f:
-        pqc_sk = f.read()
+
+#                     BUILD CSR
+
+if args.legacy:
+    print("\nLEGACY MODE ENABLED — Building CSR WITHOUT PQC extension")
+
+    csr = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, DEVICE_ID),
+            ])
+        )
+        .sign(rsa_key, hashes.SHA256())
+    )
+
 else:
-    print("Generating new Kyber512 PQC keypair...")
-    pqc_pk, pqc_sk = PureKyber512.keygen()
-    with open(PK_PATH, "wb") as f:
-        f.write(pqc_pk)
-    with open(SK_PATH, "wb") as f:
-        f.write(pqc_sk)
-    print("Saved PQC keys:", PK_PATH, SK_PATH)
+    print("\nBuilding CSR with PQC extension...")
 
+    lvl1 = OctetString(pqc_pk).dump()
+    lvl2 = OctetString(lvl1).dump()
+    encoded_pqc = OctetString(lvl2).dump()
 
-#      BUILD CSR + EXTENSION
-
-print("\nBuilding CSR with PQC extension...")
-
-lvl1 = OctetString(pqc_pk).dump()
-lvl2 = OctetString(lvl1).dump()
-encoded_pqc = OctetString(lvl2).dump()
-
-csr = (
-    x509.CertificateSigningRequestBuilder()
-    .subject_name(
-        x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, DEVICE_ID),
-        ])
+    csr = (
+        x509.CertificateSigningRequestBuilder()
+        .subject_name(
+            x509.Name([
+                x509.NameAttribute(NameOID.COMMON_NAME, DEVICE_ID),
+            ])
+        )
+        .add_extension(
+            x509.UnrecognizedExtension(PQC_OID, encoded_pqc),
+            critical=False
+        )
+        .sign(rsa_key, hashes.SHA256())
     )
-    .add_extension(
-        x509.UnrecognizedExtension(PQC_OID, encoded_pqc),
-        critical=False
-    )
-    .sign(rsa_key, hashes.SHA256())
-)
+
+    print("CSR built successfully with triple-wrapped PQC extension.")
+    print(f"PQC Key Length Embedded: {len(pqc_pk)} bytes")
 
 csr_pem = csr.public_bytes(serialization.Encoding.PEM)
 
-print("CSR built successfully with triple-wrapped PQC extension.")
-print(f"PQC Key Length Embedded: {len(pqc_pk)} bytes")
 
-#         ONBOARD MODE
+#                        ONBOARD MODE
 
 if args.mode == "onboard":
 
@@ -158,7 +174,7 @@ if args.mode == "onboard":
     exit(0)
 
 
-#        ATTEST MODE
+#                      ATTEST MODE
 
 print("\n========== ATTESTATION ==========\n")
 print("Requesting challenge...")
