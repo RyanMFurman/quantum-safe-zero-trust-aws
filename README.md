@@ -3,7 +3,7 @@
 
 ##  Overview
 
-This project implements a **fully automated, enterprise-grade Zero Trust identity system** for IoT/device fleets using AWS managed services and post-quantum cryptography (PQC). 
+This project implements a **fully automated Zero Trust identity system** for IoT/device fleets using AWS managed services and post-quantum cryptography (PQC). 
 
 The system provisions device credentials, validates PQC readiness, issues X.509 certificates via AWS ACM Private CA, performs cryptographic attestation challenges, and monitors compliance states across the device lifecycle.
 
