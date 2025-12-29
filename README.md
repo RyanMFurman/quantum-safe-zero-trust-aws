@@ -333,7 +333,12 @@ Access the CloudWatch dashboard to view:
 - **Certificate Lifecycle Automation** - Eliminated manual PKI operations
 
 ---
+## VIDEO OVERVIEW/DEMO
+Below is the link to my YouTube playlist, including two videos, one being a short explanation on the project overview and the other demo video.
 
+Link : https://www.youtube.com/playlist?list=PLKBya5nmzW3OdLVVdzK8ycfzDHKFV7WRT
+
+---
 ##  Resources & References
 
 ### Standards & Specifications
